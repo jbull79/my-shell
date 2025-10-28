@@ -39,12 +39,19 @@ REVERT=false
 QUIET=false
 SKIP_BAT_CACHE=false
 INSTALL_RANCHER_DESKTOP=true
+INSTALL_DATADOG_TOOLS=true
+
+# ---- Datadog Configuration ----
+INSTALL_DATADOG_TOOLS=true                # Set false to skip Datadog CLI utilities
+DATADOG_API_KEY=""                        # Your Datadog API Key (optional, leave blank for now)
+DATADOG_APP_KEY=""                        # Your Datadog App Key (optional, leave blank for now)
+DATADOG_SITE="datadoghq.com"              # Change to datadoghq.eu if in EU region
 
 # ---- Tool List ----
 TOOLS=(
     git zoxide bat duf fzf fd ripgrep eza tlrc thefuck git-delta
     starship uv tfenv terraform lazygit direnv
-    zsh-autosuggestions zsh-syntax-highlighting gnupg tmux
+    zsh-autosuggestions zsh-syntax-highlighting gnupg tmux datadogpy datadog-ci
 )
 
 # =============================================================================
@@ -348,6 +355,9 @@ alias cat="bat"
 alias du="duf"
 alias cd="z"
 alias lg="lazygit"
+alias ll="ls -alsh"
+alias ddm="dog monitor show_all"
+alias ddlog="datadog-ci logs upload"
 EOF
 fi
 
@@ -403,17 +413,102 @@ for key in "${!GIT_ALIASES[@]}"; do
 done
 
 # =============================================================================
+# Optional Datadog CLI & Local Developer Tools
+# =============================================================================
+if [ "$INSTALL_DATADOG_TOOLS" = true ]; then
+    read -r -p "Do you want to install Datadog CLI tools for local debugging? (y/N): " INSTALL_DD
+    if [[ "$INSTALL_DD" =~ ^[Yy]$ ]]; then
+        info "Installing Datadog CLI tools and utilities..."
+
+        # --- Install the core tools ---
+        run "pip install datadog datadogpy --quiet"
+        run "npm install -g @datadog/datadog-ci"
+
+        # --- Optional: ddtrace (for APM/debugging) ---
+        read -r -p "Would you like to install ddtrace (APM library)? (y/N): " INSTALL_DDTRACE
+        if [[ "$INSTALL_DDTRACE" =~ ^[Yy]$ ]]; then
+            run "pip install ddtrace --quiet"
+        fi
+
+        # --- Configure ZSH Environment Block ---
+        if ! grep -q "### DATADOG CONFIG START" "$ZSHRC"; then
+            cat <<EOF >> "$ZSHRC"
+
+### DATADOG CONFIG START ###
+# --- Datadog CLI Configuration ---
+# API and APP keys are required to authenticate with Datadog API.
+# To update them later, run:
+#   sed -i '' 's/^export DATADOG_API_KEY=.*/export DATADOG_API_KEY="NEW_KEY"/' ~/.zshrc
+#   sed -i '' 's/^export DATADOG_APP_KEY=.*/export DATADOG_APP_KEY="NEW_KEY"/' ~/.zshrc
+# Then reload your shell:
+#   source ~/.zshrc
+#
+# If you’re in the EU region, change the DATADOG_SITE value below to "datadoghq.eu"
+
+export DATADOG_API_KEY="${DATADOG_API_KEY}"
+export DATADOG_APP_KEY="${DATADOG_APP_KEY}"
+export DATADOG_SITE="${DATADOG_SITE}"
+
+# --- Datadog CLI Shortcuts ---
+alias ddq="dog metric query"
+alias dmon="dog monitor show_all"
+alias dtrace="datadog-ci trace upload"
+### DATADOG CONFIG END ###
+EOF
+        fi
+
+        # --- Display summary for user ---
+        info "✅ Datadog CLI installed and configured."
+        echo ""
+        echo "──────────────────────────────────────────────"
+        echo "📡  DATADOG INTEGRATION SUMMARY"
+        echo "──────────────────────────────────────────────"
+        echo "Installed tools:"
+        echo "  - dog (Datadog CLI via datadogpy)"
+        echo "  - datadog-ci (Node CLI for CI visibility)"
+        echo "  - ddtrace (optional local APM tracer)"
+        echo ""
+        echo "Environment file updated:"
+        echo "  → $ZSHRC"
+        echo ""
+        echo "🔐 To update your Datadog API or APP keys later:"
+        echo "   sed -i '' 's/^export DATADOG_API_KEY=.*/export DATADOG_API_KEY=\"NEW_API_KEY\"/' ~/.zshrc"
+        echo "   sed -i '' 's/^export DATADOG_APP_KEY=.*/export DATADOG_APP_KEY=\"NEW_APP_KEY\"/' ~/.zshrc"
+        echo "   source ~/.zshrc"
+        echo ""
+        echo "🌍 Current Datadog region: ${DATADOG_SITE}"
+        echo "💡 You can query metrics like:"
+        echo "   ddq \"avg:last_1h:system.cpu.user{*}\""
+        echo "──────────────────────────────────────────────"
+        echo ""
+    else
+        info "Skipping Datadog CLI tools setup."
+    fi
+fi
+
+# =============================================================================
+# Housekeeping
+# =============================================================================
+info "Setting permissions for backup directory..."
+chmod 700 "$BACKUP_DIR"
+
+info "Reloading shell to apply Starship theme..."
+run "exec zsh -l"
+
+# =============================================================================
 # Summary
 # =============================================================================
-info "✅ Setup complete!"
-info "📦 Backups in: $BACKUP_DIR"
-info "🔐 SSH key: $SSH_KEY"
-info "🔑 GPG key: ~/.gnupg"
-info "🚀 Starship auto-switch (Git/Non-Git)"
-info "🧩 Bat default: $BAT_DEFAULT_THEME"
-info "💡 Nerd Font installed: MesloLGS NF"
-info "🧱 Git config updated: ~/.gitconfig"
-
+echo -e "\033[1;32m✅ Setup complete!\033[0m"
+echo -e "\033[1;36m📦 Backups:\033[0m $BACKUP_DIR"
+echo -e "\033[1;36m🔐 SSH Key:\033[0m $SSH_KEY"
+echo -e "\033[1;36m🔑 GPG Key:\033[0m ~/.gnupg"
+echo -e "\033[1;36m🚀 Starship auto-switch:\033[0m Enabled (Git/Non-Git)"
+echo -e "\033[1;36m🧩 Bat Theme:\033[0m $BAT_DEFAULT_THEME"
+echo -e "\033[1;36m💡 Font:\033[0m MesloLGS NF"
+echo -e "\033[1;36m🧱 Git Config:\033[0m ~/.gitconfig"
+echo -e "\033[1;36m🔑 Datadog API Key:\033[0m $DATADOG_API_KEY"
+echo -e "\033[1;36m🔑 Datadog App Key:\033[0m $DATADOG_APP_KEY"
+echo -e "\033[1;36m🌍 Datadog Site:\033[0m $DATADOG_SITE"
 
 # =============================================================================
 # Final Font Reminder
