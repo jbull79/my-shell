@@ -1,3 +1,5 @@
+![Lint](https://github.com/jbull79/my-shell/actions/workflows/lint.yml/badge.svg)
+
 # 🧠 my-shell — Automated CLI Environment Setup
 
 A fully automated Bash script that bootstraps a **modern developer CLI environment** with everything you need — from `brew` to `oh-my-zsh`, `starship`, `fzf`, and developer tooling for Git, Terraform, Python, and more.
