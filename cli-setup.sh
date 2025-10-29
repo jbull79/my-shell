@@ -39,10 +39,9 @@ REVERT=false
 QUIET=false
 SKIP_BAT_CACHE=false
 INSTALL_RANCHER_DESKTOP=true
-INSTALL_DATADOG_TOOLS=true
+INSTALL_DATADOG_TOOLS=false               # Set false to skip Datadog CLI utilities
 
-# ---- Datadog Configuration ----
-INSTALL_DATADOG_TOOLS=true                # Set false to skip Datadog CLI utilities
+# ---- Datadog Configuration ----         
 DATADOG_API_KEY=""                        # Your Datadog API Key (optional, leave blank for now)
 DATADOG_APP_KEY=""                        # Your Datadog App Key (optional, leave blank for now)
 DATADOG_SITE="datadoghq.com"              # Change to datadoghq.eu if in EU region
