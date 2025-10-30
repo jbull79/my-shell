@@ -1,49 +1,46 @@
-name: 🧪 Code Quality — Shell, Markdown, Python
-
+name: Lint & Format
 on:
   push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
 
 jobs:
   lint:
-    name: Run linters
     runs-on: ubuntu-latest
-
     steps:
-      # --- 1. Checkout the repository ---
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # --- 2. Shell Linting (ShellCheck) ---
-      - name: Install ShellCheck
-        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      # 🔹 Install linters + formatters
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck shfmt
+          npm install -g markdownlint-cli prettier
+          pip install flake8 black
 
-      - name: Lint shell scripts
+      # 🔹 Shell lint + format check
+      - name: Check shell scripts
         run: |
           echo "🔍 Running ShellCheck..."
-          find . -type f -name "*.sh" -print0 | xargs -0 -n1 shellcheck || true
+          find . -type f -name "*.sh" -print0 | xargs -0 -n1 shellcheck
+          echo "🧹 Checking shfmt formatting..."
+          shfmt -d -i 2 -ci -sr .
 
-      # --- 3. Markdown Linting (markdownlint-cli) ---
-      - name: Install markdownlint-cli
-        run: npm install -g markdownlint-cli
-
-      - name: Lint Markdown files
+      # 🔹 Markdown lint + format check
+      - name: Check markdown files
         run: |
           echo "🧾 Running markdownlint..."
-          markdownlint "**/*.md" || true
+          markdownlint "**/*.md"
+          echo "✨ Checking markdown formatting..."
+          prettier --check "**/*.md"
 
-      # --- 4. Python Linting (Flake8) ---
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Install Flake8
-        run: pip install flake8
-
-      - name: Lint Python files
+      # 🔹 Python lint + format check
+      - name: Check Python files
         run: |
           echo "🐍 Running Flake8..."
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          echo "🎨 Checking Black formatting..."
+          black --check .
+
+      - name: ✅ Summary
+        if: success()
+        run: echo "All linting and formatting checks passed ✅"
