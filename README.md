@@ -1,6 +1,6 @@
 # my-shell (modular)
 
-![Lint](https://github.com/your-org/your-repo/actions/workflows/lint.yml/badge.svg)
+![Lint](https://github.com/joe/my-shell/actions/workflows/lint.yml/badge.svg?branch=main)
 
 Modular CLI bootstrap:
 - Homebrew + core tools
