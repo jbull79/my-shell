@@ -28,10 +28,13 @@ BACKUP_BASE="$HOME/.setup_backups"          # Backup folder
 STARSHIP_DIR="$HOME/.config"                # Starship config folder
 BAT_CONFIG_DIR="$HOME/.config/bat"          # Bat config folder
 
+
 # ---- Themes ----
 BAT_DEFAULT_THEME="TwoDark"                 # Default bat theme
 STARSHIP_DEFAULT_THEME="pastel-powerline"   # Outside git repos
 STARSHIP_GIT_THEME="tokyo-night"            # Inside git repos
+STARSHIP_DEFAULT_CONF="$STARSHIP_DIR/starship_default.toml"
+STARSHIP_GIT_CONF="$STARSHIP_DIR/starship_git.toml"
 
 # ---- Feature Toggles ----
 DRY_RUN=false
@@ -39,12 +42,19 @@ REVERT=false
 QUIET=false
 SKIP_BAT_CACHE=false
 INSTALL_RANCHER_DESKTOP=true
-INSTALL_DATADOG_TOOLS=false               # Set false to skip Datadog CLI utilities
+INSTALL_DATADOG_TOOLS=false                 # Set false to skip Datadog CLI utilities
+INSTALL_AWS_CLI=true                        # Set false to skip AWS CLI installation
+
+# ---- AWS CLI Configuration ----
+AWS_PROFILE_NAME="default"                  # Default profile name
+AWS_DEFAULT_REGION="us-west-2"              # Change to your preferred AWS region
+AWS_DEFAULT_OUTPUT="json"                   # Default output format (json, yaml, text)
+AWS_CONFIG_DIR="$HOME/.aws"                 # AWS config directory
 
 # ---- Datadog Configuration ----         
-DATADOG_API_KEY=""                        # Your Datadog API Key (optional, leave blank for now)
-DATADOG_APP_KEY=""                        # Your Datadog App Key (optional, leave blank for now)
-DATADOG_SITE="datadoghq.com"              # Change to datadoghq.eu if in EU region
+DATADOG_API_KEY=""                          # Your Datadog API Key (optional, leave blank for now)
+DATADOG_APP_KEY=""                          # Your Datadog App Key (optional, leave blank for now)
+DATADOG_SITE="datadoghq.com"                # Change to datadoghq.eu if in EU region
 
 # ---- Tool List ----
 TOOLS=(
@@ -158,6 +168,7 @@ fi
 # Font (for Starship Icons)
 # =============================================================================
 if [[ "$OSTYPE" == "darwin"* ]]; then
+    run "brew tap homebrew/cask-fonts || true"
     if ! ls ~/Library/Fonts /Library/Fonts 2>/dev/null | grep -qi "MesloLGS NF"; then
         info "Installing Meslo Nerd Font for Starship icons..."
         run "brew install --cask font-meslo-lg-nerd-font"
@@ -178,20 +189,79 @@ else
     fi
 fi
 
-# =============================================================================
-# Starship Dynamic Config
-# =============================================================================
 run "mkdir -p \"$STARSHIP_DIR\""
-STARSHIP_DEFAULT_CONF="$STARSHIP_DIR/starship_default.toml"
-STARSHIP_GIT_CONF="$STARSHIP_DIR/starship_git.toml"
+touch "$STARSHIP_DEFAULT_CONF" "$STARSHIP_GIT_CONF"
 
-info "Generating Starship default (non-git) preset..."
-run "starship preset \"$STARSHIP_DEFAULT_THEME\" > \"$STARSHIP_DEFAULT_CONF\""
+# =============================================================================
+# Dynamic AWS Module Generation for Starship
+# =============================================================================
+if [ "$INSTALL_AWS_CLI" = true ]; then
+    info "Injecting dynamic AWS profile aliases and colors into Starship configs..."
 
-info "Generating Starship git preset..."
-run "starship preset \"$STARSHIP_GIT_THEME\" > \"$STARSHIP_GIT_CONF\""
+    # Detect all AWS profiles
+    AWS_CONFIG_FILE="$HOME/.aws/config"
+    if [ -f "$AWS_CONFIG_FILE" ]; then
+        AWS_PROFILES=($(grep '^\[profile ' "$AWS_CONFIG_FILE" | sed -E 's/^\[profile (.*)\]/\1/'))
+    else
+        AWS_PROFILES=("default")
+    fi
 
+    # Fallback if no profiles found
+    [ ${#AWS_PROFILES[@]} -eq 0 ] && AWS_PROFILES=("default")
 
+    # Start building alias and color maps dynamically
+    ALIASES_BLOCK="[aws.profile_aliases]"
+    STYLE_MAP_BLOCK="[aws.style_map]"
+
+    for profile in "${AWS_PROFILES[@]}"; do
+        case "$profile" in
+            prod|production)
+                ALIAS_NAME="production"
+                STYLE="bold red"
+                ;;
+            dev|development)
+                ALIAS_NAME="development"
+                STYLE="bold green"
+                ;;
+            staging)
+                ALIAS_NAME="staging"
+                STYLE="bold yellow"
+                ;;
+            sandbox)
+                ALIAS_NAME="sandbox"
+                STYLE="bold blue"
+                ;;
+            *)
+                ALIAS_NAME="$profile"
+                STYLE="bold cyan"
+                ;;
+        esac
+        ALIASES_BLOCK+="\n${profile} = \"${ALIAS_NAME}\""
+        STYLE_MAP_BLOCK+="\n${ALIAS_NAME} = \"${STYLE}\""
+    done
+
+    # Append to both Starship config files if AWS section not already there
+    for CONF in "$STARSHIP_DEFAULT_CONF" "$STARSHIP_GIT_CONF"; do
+        if ! grep -q "^\[aws\]" "$CONF"; then
+            cat <<EOF >> "$CONF"
+
+# --- AWS Profile Indicator (Auto-generated) ---
+[aws]
+symbol = "☁️ "
+style = "bold yellow"
+format = "on [$symbol$profile]($style) "
+disabled = false
+
+$ALIASES_BLOCK
+
+$STYLE_MAP_BLOCK
+EOF
+            info "✅ AWS module with dynamic profile mapping added to: $CONF"
+        fi
+    done
+else
+    info "Skipping Starship AWS module setup (AWS CLI not installed)."
+fi
 
 # =============================================================================
 # Optional: Interactive Starship Theme Selection
@@ -218,14 +288,14 @@ if [[ "$CHANGE_STARSHIP" =~ ^[Yy]$ ]]; then
 
         if [ -n "$SELECTED_DEFAULT" ]; then
             info "Applying non-Git Starship preset: $SELECTED_DEFAULT"
-            run "starship preset $SELECTED_DEFAULT > \"$STARSHIP_DIR/starship_default.toml\""
+            run "starship preset $SELECTED_DEFAULT > \"$STARSHIP_DEFAULT_CONF\""
         else
             warn "No non-Git preset selected. Keeping default ($STARSHIP_DEFAULT_THEME)."
         fi
 
         if [ -n "$SELECTED_GIT" ]; then
             info "Applying Git Starship preset: $SELECTED_GIT"
-            run "starship preset $SELECTED_GIT > \"$STARSHIP_DIR/starship_git.toml\""
+            run "starship preset $SELECTED_GIT > \"$STARSHIP_GIT_CONF\""
         else
             warn "No Git preset selected. Keeping default ($STARSHIP_GIT_THEME)."
         fi
@@ -236,9 +306,7 @@ else
     info "Keeping default Starship presets: non-Git='$STARSHIP_DEFAULT_THEME', Git='$STARSHIP_GIT_THEME'."
 fi
 
-
-
-# Dynamic theme reload function (precmd hook)
+# --- Dynamic theme reload function ---
 if ! grep -q "starship_preexec" "$ZSHRC"; then
 cat <<'EOF' >> "$ZSHRC"
 
@@ -260,9 +328,6 @@ fi
 # bat Theme + Syntax Cache
 # =============================================================================
 run "mkdir -p $BAT_CONFIG_DIR"
-
-# Default theme
-BAT_DEFAULT_THEME="TwoDark"
 
 if [ ! -f "$BAT_CONFIG_DIR/config" ]; then
     echo "--theme=\"$BAT_DEFAULT_THEME\"" > "$BAT_CONFIG_DIR/config"
@@ -485,14 +550,212 @@ EOF
     fi
 fi
 
+
+# =============================================================================
+# AWS CLI Installation & Configuration (Validated Multi-Profile Setup)
+# =============================================================================
+if [ "$INSTALL_AWS_CLI" = true ]; then
+    info "Installing and configuring AWS CLI..."
+
+    # --- Install AWS CLI if missing ---
+    if ! command -v aws &>/dev/null; then
+        if command -v brew &>/dev/null; then
+            info "Installing AWS CLI via Homebrew..."
+            run "brew install awscli"
+        else
+            info "Installing AWS CLI via pip..."
+            run "pip install awscli --quiet"
+        fi
+    else
+        info "AWS CLI already installed: $(aws --version)"
+    fi
+
+    # --- Backup Existing AWS Config ---
+    if [ -d "$AWS_CONFIG_DIR" ]; then
+        BACKUP_AWS_DIR="$BACKUP_DIR/aws_backup"
+        info "Backing up existing AWS config to $BACKUP_AWS_DIR"
+        run "mkdir -p \"$BACKUP_AWS_DIR\" && cp -r \"$AWS_CONFIG_DIR\" \"$BACKUP_AWS_DIR\""
+    fi
+
+    run "mkdir -p \"$AWS_CONFIG_DIR\""
+    CONFIG_FILE="$AWS_CONFIG_DIR/config"
+    CREDS_FILE="$AWS_CONFIG_DIR/credentials"
+    [ -f "$CONFIG_FILE" ] || touch "$CONFIG_FILE"
+    [ -f "$CREDS_FILE" ] || touch "$CREDS_FILE"
+
+    # Clear existing files before writing new profiles to prevent duplication
+    : > "$CONFIG_FILE"
+    : > "$CREDS_FILE"
+
+    echo ""
+    echo "───────────────────────────────────────────────"
+    echo "☁️  AWS CLI Profile Setup"
+    echo "───────────────────────────────────────────────"
+    echo ""
+    read -r -p "Enter AWS profile names separated by spaces (default: 'dev prod'): " PROFILE_INPUT
+
+    PROFILE_INPUT="${PROFILE_INPUT//,/ }"
+    PROFILES=()
+    if [ -z "$PROFILE_INPUT" ]; then
+        PROFILES=("dev" "prod")
+    else
+    # Validate profile names
+        # Validate profile names
+        INVALID_PROFILES=()
+        for p in $PROFILE_INPUT; do
+            if [[ "$p" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+                PROFILES+=("$p")
+            else
+                INVALID_PROFILES+=("$p")
+            fi
+        done
+
+        if [ ${#INVALID_PROFILES[@]} -gt 0 ]; then
+            warn "Ignoring invalid profile names: ${INVALID_PROFILES[*]}"
+        fi
+
+        # Fallback to defaults if nothing valid entered
+        if [ ${#PROFILES[@]} -eq 0 ]; then
+            warn "No valid profiles entered. Defaulting to 'dev' and 'prod'."
+            PROFILES=("dev" "prod")
+        fi
+    fi
+
+    echo ""
+    info "Profiles to configure: ${PROFILES[*]}"
+
+    # --- Ask if we should prompt for real credentials ---
+    echo ""
+    read -r -p "Do you want to provide valid AWS account details for these profiles now? (y/N): " PROVIDE_CREDS
+
+    if [[ "$PROVIDE_CREDS" =~ ^[Yy]$ ]]; then
+        info "Entering interactive AWS configuration mode..."
+
+        for PROFILE in "${PROFILES[@]}"; do
+            echo ""
+            echo -e "\033[1;33mConfiguring AWS profile: $PROFILE\033[0m"
+
+            # Validate region
+            read -r -p "Enter region for $PROFILE (default: us-east-1): " REGION
+            REGION=${REGION:-us-east-1}
+            if ! [[ "$REGION" =~ ^[a-z]{2}-[a-z]+-[0-9]+$ ]]; then
+                warn "Invalid region format: '$REGION'. Defaulting to 'us-east-1'."
+                REGION="us-east-1"
+            fi
+
+            # Validate output
+            read -r -p "Enter output format for $PROFILE (default: json): " OUTPUT
+            OUTPUT=${OUTPUT:-json}
+            case "$OUTPUT" in
+                json|yaml|yaml-stream|text) ;;
+                *) warn "Invalid output '$OUTPUT'. Defaulting to 'json'."; OUTPUT="json" ;;
+            esac
+
+            # Validate credentials
+            read -r -p "Enter AWS Access Key ID for $PROFILE: " ACCESS_KEY
+            read -r -p "Enter AWS Secret Access Key for $PROFILE: " SECRET_KEY
+
+            if [[ ! "$ACCESS_KEY" =~ ^[A-Z0-9]{16,}$ ]]; then
+                warn "Invalid Access Key ID — using dummy."
+                ACCESS_KEY="DUMMYACCESSKEY-$PROFILE"
+            fi
+
+            if [[ ! "$SECRET_KEY" =~ ^[A-Za-z0-9/+=]{30,}$ ]]; then
+                warn "Invalid Secret Access Key — using dummy."
+                SECRET_KEY="DUMMYSECRETKEY-$PROFILE"
+            fi
+
+            # Write validated values
+            cat <<EOF >> "$CONFIG_FILE"
+
+[profile $PROFILE]
+region = $REGION
+output = $OUTPUT
+EOF
+
+            cat <<EOF >> "$CREDS_FILE"
+
+[$PROFILE]
+aws_access_key_id = $ACCESS_KEY
+aws_secret_access_key = $SECRET_KEY
+EOF
+        done
+
+    else
+        info "Skipping AWS credential input — creating default profiles with dummy data..."
+        for PROFILE in "${PROFILES[@]}"; do
+            REGION="us-east-1"
+            OUTPUT="json"
+            ACCESS_KEY="DUMMYACCESSKEY-$PROFILE"
+            SECRET_KEY="DUMMYSECRETKEY-$PROFILE"
+
+            cat <<EOF >> "$CONFIG_FILE"
+
+[profile $PROFILE]
+region = $REGION
+output = $OUTPUT
+EOF
+
+            cat <<EOF >> "$CREDS_FILE"
+
+[$PROFILE]
+aws_access_key_id = $ACCESS_KEY
+aws_secret_access_key = $SECRET_KEY
+EOF
+        done
+    fi
+
+    echo ""
+    info "AWS CLI configuration complete."
+fi
+
+
+# =============================================================================
+# AWS CLI Profile Switching Alias
+# =============================================================================
+if [ "$INSTALL_AWS_CLI" = true ]; then
+    info "Adding AWS profile switch helper aliases to ZSH..."
+
+    if ! grep -q "### AWS PROFILE SWITCH START" "$ZSHRC"; then
+        cat <<'EOF' >> "$ZSHRC"
+
+### AWS PROFILE SWITCH START ###
+# --- AWS Profile Switching Helper ---
+# List available AWS profiles:
+aws-profiles() {
+    if command -v aws >/dev/null 2>&1; then
+        aws configure list-profiles
+    else
+        echo "⚠️  AWS CLI not installed or unavailable in PATH."
+    fi
+}
+
+# Switch AWS profile:
+aws-switch() {
+    local profile_name
+    profile_name=$(aws configure list-profiles | fzf --height=40% --reverse --border --prompt="Select AWS profile: " --ansi)
+    if [ -n "$profile_name" ]; then
+        export AWS_PROFILE="$profile_name"
+        echo "✅ Switched AWS profile to: $AWS_PROFILE"
+    else
+        echo "⚠️  No profile selected."
+    fi
+}
+
+# Quick profile check:
+alias aws-whoami='echo "AWS_PROFILE=\$AWS_PROFILE" && aws sts get-caller-identity --output json 2>/dev/null || echo "Not logged in or invalid credentials."'
+### AWS PROFILE SWITCH END ###
+EOF
+    fi
+fi
+
+
+
 # =============================================================================
 # Housekeeping
 # =============================================================================
-info "Setting permissions for backup directory..."
-chmod 700 "$BACKUP_DIR"
+echo -e "\033[1;36m📦 Backup directory created at:\033[0m $BACKUP_DIR"
 
-info "Reloading shell to apply Starship theme..."
-run "exec zsh -l"
 
 # =============================================================================
 # Summary
@@ -505,9 +768,39 @@ echo -e "\033[1;36m🚀 Starship auto-switch:\033[0m Enabled (Git/Non-Git)"
 echo -e "\033[1;36m🧩 Bat Theme:\033[0m $BAT_DEFAULT_THEME"
 echo -e "\033[1;36m💡 Font:\033[0m MesloLGS NF"
 echo -e "\033[1;36m🧱 Git Config:\033[0m ~/.gitconfig"
-echo -e "\033[1;36m🔑 Datadog API Key:\033[0m $DATADOG_API_KEY"
-echo -e "\033[1;36m🔑 Datadog App Key:\033[0m $DATADOG_APP_KEY"
-echo -e "\033[1;36m🌍 Datadog Site:\033[0m $DATADOG_SITE"
+
+# --- Datadog Summary (only if installed) ---
+if [ "$INSTALL_DATADOG_TOOLS" = true ]; then
+    echo -e "\033[1;36m🔧 Datadog CLI:\033[0m Installed and Configured"
+    echo -e "\033[1;36m🔑 Datadog API Key:\033[0m ${DATADOG_API_KEY:-Not Set}"
+    echo -e "\033[1;36m🔑 Datadog App Key:\033[0m ${DATADOG_APP_KEY:-Not Set}"
+    echo -e "\033[1;36m🌍 Datadog Site:\033[0m $DATADOG_SITE"
+fi
+
+# --- AWS Summary (only if installed) ---
+if [ "$INSTALL_AWS_CLI" = true ]; then
+    echo -e "\033[1;36m☁️ AWS CLI:\033[0m Installed and Configured"
+    echo -e "\033[1;36m📁 Config Directory:\033[0m $AWS_CONFIG_DIR"
+    echo -e "\033[1;36m🧾 Config File:\033[0m $AWS_CONFIG_DIR/config"
+    echo -e "\033[1;36m🔑 Credentials File:\033[0m $AWS_CONFIG_DIR/credentials"
+    echo -e "\033[1;36m🧩 Profiles Created:\033[0m ${PROFILES[*]:-dev prod}"
+    echo -e "\033[1;36m🌍 Default Output Format:\033[0m json"
+    echo ""
+    echo -e "\033[1;33mTo update credentials later:\033[0m"
+    echo "  aws configure --profile <profile>"
+    echo ""
+    echo -e "\033[1;33mManual edit locations:\033[0m"
+    echo "  - $AWS_CONFIG_DIR/config"
+    echo "  - $AWS_CONFIG_DIR/credentials"
+    echo ""
+    echo -e "\033[1;36m🔁 AWS Profile Switching:\033[0m Enabled"
+    echo "   → Use 'aws-switch' to choose a profile (fzf picker)"
+    echo "   → Use 'aws-whoami' to verify active credentials"
+    echo ""
+fi
+
+info "Setup complete. Please reload your shell manually to apply all changes:"
+echo "   source ~/.zshrc"
 
 # =============================================================================
 # Final Font Reminder
