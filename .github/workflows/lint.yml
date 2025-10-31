@@ -18,10 +18,10 @@ jobs:
           pip install flake8 black
 
       # 🔹 Shell lint + format check
-      - name: Check shell scripts
+      - name: Run ShellCheck
         run: |
           echo "🔍 Running ShellCheck..."
-          find . -type f -name "*.sh" -print0 | xargs -0 -n1 shellcheck
+          find . -type f -name "*.sh" -print0 | xargs -0 -n1 shellcheck -x
           echo "🧹 Checking shfmt formatting..."
           shfmt -d -i 2 -ci -sr .
 
