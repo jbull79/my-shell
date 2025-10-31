@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 set -euo pipefail
-[[ "${BASH_SOURCE[0]}" == "$0" ]] && { echo "Source via install.sh"; exit 1; }
+[[ "${BASH_SOURCE[0]}" == "$0" ]] && {
+  echo "Source via install.sh"
+  exit 1
+}
 
 info "Ensuring Meslo Nerd Font is installed..."
 if [[ "$OSTYPE" == "darwin"* ]]; then
   info "Installing Meslo Nerd Font (macOS)..."
-  if ! brew list --cask font-meslo-lg-nerd-font >/dev/null 2>&1; then
+  if ! brew list --cask font-meslo-lg-nerd-font > /dev/null 2>&1; then
     if ! run "brew install --cask font-meslo-lg-nerd-font"; then
       warn "Brew cask failed; falling back to manual download."
       TMP="$(mktemp -d)"
@@ -16,7 +19,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     fi
   fi
 else
-  if ! command -v fc-list >/dev/null 2>&1; then
+  if ! command -v fc-list > /dev/null 2>&1; then
     run "brew install fontconfig"
   fi
   if ! fc-list | grep -qi 'MesloLGS NF'; then

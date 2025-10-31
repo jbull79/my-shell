@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 set -euo pipefail
-[[ "${BASH_SOURCE[0]}" == "$0" ]] && { echo "Source via install.sh"; exit 1; }
+[[ "${BASH_SOURCE[0]}" == "$0" ]] && {
+  echo "Source via install.sh"
+  exit 1
+}
 
 info "Configuring bat syntax highlighting and themes..."
 BAT_CONFIG_DIR="${BAT_CONFIG_DIR:-$HOME/.config/bat}"
@@ -33,9 +36,9 @@ fi
 read -r -p "Would you like to change your bat theme now? (y/N): " CHANGE_BAT
 if [[ "$CHANGE_BAT" =~ ^[Yy]$ ]]; then
   mapfile -t THEMES < <(bat --list-themes || true)
-  if (( ${#THEMES[@]} > 0 )); then
+  if ((${#THEMES[@]} > 0)); then
     DEMO_FILE="/tmp/bat_theme_demo.py"
-    cat >"$DEMO_FILE" <<'PY'
+    cat > "$DEMO_FILE" << 'PY'
 # Example Python file for bat preview
 def greet(name): print(f"Hello, {name}!")
 greet("world")

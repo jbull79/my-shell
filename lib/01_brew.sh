@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 set -euo pipefail
-[[ "${BASH_SOURCE[0]}" == "$0" ]] && { echo "Source via install.sh"; exit 1; }
+[[ "${BASH_SOURCE[0]}" == "$0" ]] && {
+  echo "Source via install.sh"
+  exit 1
+}
 
 ZSHRC="${ZSHRC:-$HOME/.zshrc}"
 GITCONFIG="${GITCONFIG:-$HOME/.gitconfig}"
@@ -13,7 +16,7 @@ backup_file "$ZSHRC"
 backup_file "$GITCONFIG"
 
 # Determine brew prefix
-if command -v brew >/dev/null 2>&1; then
+if command -v brew > /dev/null 2>&1; then
   BREW_PREFIX="$(brew --prefix)"
 else
   if [[ "$OSTYPE" == "linux-gnu"* ]]; then
@@ -22,14 +25,14 @@ else
     BREW_PREFIX="/opt/homebrew"
   fi
 fi
-eval "$("$BREW_PREFIX"/bin/brew shellenv 2>/dev/null || true)"
+eval "$("$BREW_PREFIX"/bin/brew shellenv 2> /dev/null || true)"
 
 # Install / update Homebrew
-if ! command -v brew >/dev/null 2>&1; then
+if ! command -v brew > /dev/null 2>&1; then
   info "Installing Homebrew..."
-  eval "$("${BREW_PREFIX}"/bin/brew shellenv 2>/dev/null || true)"
+  eval "$("${BREW_PREFIX}"/bin/brew shellenv 2> /dev/null || true)"
   run /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  eval "$("${BREW_PREFIX}"/bin/brew shellenv 2>/dev/null || true)"
+  eval "$("${BREW_PREFIX}"/bin/brew shellenv 2> /dev/null || true)"
 else
   info "Homebrew already installed. Updating..."
   run brew update

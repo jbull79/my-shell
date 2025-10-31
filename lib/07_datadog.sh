@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 set -euo pipefail
-[[ "${BASH_SOURCE[0]}" == "$0" ]] && { echo "Source via install.sh"; exit 1; }
+[[ "${BASH_SOURCE[0]}" == "$0" ]] && {
+  echo "Source via install.sh"
+  exit 1
+}
 
 INSTALL_DATADOG_TOOLS="${INSTALL_DATADOG_TOOLS:-false}"
 ZSHRC="${ZSHRC:-$HOME/.zshrc}"
@@ -22,7 +25,7 @@ if [[ "$INSTALL_DATADOG_TOOLS" == "true" ]]; then
     fi
 
     if ! grep -q "### DATADOG CONFIG START" "$ZSHRC"; then
-      cat <<EOF >> "$ZSHRC"
+      cat << EOF >> "$ZSHRC"
 
 ### DATADOG CONFIG START ###
 export DATADOG_API_KEY="${DATADOG_API_KEY}"

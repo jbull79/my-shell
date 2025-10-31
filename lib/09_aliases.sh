@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 set -euo pipefail
-[[ "${BASH_SOURCE[0]}" == "$0" ]] && { echo "Source via install.sh"; exit 1; }
+[[ "${BASH_SOURCE[0]}" == "$0" ]] && {
+  echo "Source via install.sh"
+  exit 1
+}
 
 info "Adding common CLI aliases..."
 ZSHRC="${ZSHRC:-$HOME/.zshrc}"
-if ! grep -q "# --- CLI Aliases ---" "$ZSHRC" 2>/dev/null; then
-  cat <<'EOF' >> "$ZSHRC"
+if ! grep -q "# --- CLI Aliases ---" "$ZSHRC" 2> /dev/null; then
+  cat << 'EOF' >> "$ZSHRC"
 
 # --- CLI Aliases ---
 alias cat="bat"
