@@ -50,7 +50,11 @@ if [[ -z "${PROFILE_INPUT// }" ]]; then
   PROFILES=(dev prod)
 else
   for p in $PROFILE_INPUT; do
-    [[ "$p" =~ ^[a-zA-Z0-9_-]+$ ]] && PROFILES+=("$p") || warn "Ignoring invalid profile: $p"
+    if [[ "$p" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+      PROFILES+=("$p")
+    else
+      warn "Ignoring invalid profile: $p"
+    fi
   done
   (( ${#PROFILES[@]} == 0 )) && PROFILES=(dev prod)
 fi

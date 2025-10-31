@@ -19,7 +19,7 @@ run() {
   if [[ "${DRY_RUN:-false}" == "true" ]]; then
     echo "[DRY-RUN] $*"
   else
-    eval "$@"
+    "$@"
   fi
 }
 

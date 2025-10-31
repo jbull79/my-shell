@@ -27,8 +27,9 @@ eval "$($BREW_PREFIX/bin/brew shellenv 2>/dev/null || true)"
 # Install / update Homebrew
 if ! command -v brew >/dev/null 2>&1; then
   info "Installing Homebrew..."
-  run '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
-  eval "$($BREW_PREFIX/bin/brew shellenv 2>/dev/null || true)"
+  eval "$("${BREW_PREFIX}"/bin/brew shellenv 2>/dev/null || true)"
+  run /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  eval "$("${BREW_PREFIX}"/bin/brew shellenv 2>/dev/null || true)"
 else
   info "Homebrew already installed. Updating..."
   run brew update
