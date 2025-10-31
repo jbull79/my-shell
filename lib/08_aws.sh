@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 set -euo pipefail
-[[ "${BASH_SOURCE[0]}" == "$0" ]] && { echo "Source via install.sh"; exit 1; }
+[[ "${BASH_SOURCE[0]}" == "$0" ]] && {
+  echo "Source via install.sh"
+  exit 1
+}
 
 INSTALL_AWS_CLI="${INSTALL_AWS_CLI:-true}"
 AWS_CONFIG_DIR="${AWS_CONFIG_DIR:-$HOME/.aws}"
@@ -11,8 +14,8 @@ if [[ "$INSTALL_AWS_CLI" != "true" ]]; then
 fi
 
 info "Installing AWS CLI (if not present)..."
-if ! command -v aws >/dev/null 2>&1; then
-  if command -v brew >/dev/null 2>&1; then
+if ! command -v aws > /dev/null 2>&1; then
+  if command -v brew > /dev/null 2>&1; then
     run "brew install awscli"
   else
     run "pip install awscli --quiet"
@@ -30,12 +33,12 @@ backup_file "$CREDS_FILE"
 BACKUP_DIR_AWS="${BACKUP_DIR:-$HOME/.setup_backups}/aws_backup_$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$BACKUP_DIR_AWS"
 info "Backed up existing AWS config → $BACKUP_DIR_AWS"
-cp -a "$AWS_CONFIG_DIR"/* "$BACKUP_DIR_AWS" 2>/dev/null || true
+cp -a "$AWS_CONFIG_DIR"/* "$BACKUP_DIR_AWS" 2> /dev/null || true
 
 : > "$CONFIG_FILE"
 : > "$CREDS_FILE"
 
-cat <<'HDR'
+cat << 'HDR'
 
 ───────────────────────────────────────────────
 ☁️  AWS CLI Profile Setup
@@ -46,13 +49,17 @@ HDR
 read -r -p "Enter AWS profile names separated by spaces (default: 'dev prod'): " PROFILE_INPUT
 PROFILE_INPUT="${PROFILE_INPUT//,/ }"
 PROFILES=()
-if [[ -z "${PROFILE_INPUT// }" ]]; then
+if [[ -z "${PROFILE_INPUT// /}" ]]; then
   PROFILES=(dev prod)
 else
   for p in $PROFILE_INPUT; do
-    [[ "$p" =~ ^[a-zA-Z0-9_-]+$ ]] && PROFILES+=("$p") || warn "Ignoring invalid profile: $p"
+    if [[ "$p" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+      PROFILES+=("$p")
+    else
+      warn "Ignoring invalid profile: $p"
+    fi
   done
-  (( ${#PROFILES[@]} == 0 )) && PROFILES=(dev prod)
+  ((${#PROFILES[@]} == 0)) && PROFILES=(dev prod)
 fi
 
 info "Profiles to configure: ${PROFILES[*]}"
@@ -83,11 +90,12 @@ if [[ "$PROVIDE_CREDS" =~ ^[Yy]$ ]]; then
     read -r -p "Enter region for $PROFILE (default: us-east-1): " REGION
     REGION=${REGION:-us-east-1}
     if ! [[ "$REGION" =~ ^[a-z]{2}-[a-z]+-[0-9]+$ ]]; then
-      warn "Invalid region, using us-east-1"; REGION="us-east-1"
+      warn "Invalid region, using us-east-1"
+      REGION="us-east-1"
     fi
     read -r -p "Enter output format for $PROFILE (default: json): " OUTPUT
     OUTPUT=${OUTPUT:-json}
-    case "$OUTPUT" in json|yaml|yaml-stream|text) ;; *) OUTPUT="json";; esac
+    case "$OUTPUT" in json | yaml | yaml-stream | text) ;; *) OUTPUT="json" ;; esac
     read -r -p "Enter AWS Access Key ID for $PROFILE: " ACCESS_KEY
     read -r -p "Enter AWS Secret Access Key for $PROFILE: " SECRET_KEY
     [[ "$ACCESS_KEY" =~ ^[A-Z0-9]{16,}$ ]] || ACCESS_KEY="DUMMYACCESSKEY-$PROFILE"

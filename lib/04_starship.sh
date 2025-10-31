@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 set -euo pipefail
-[[ "${BASH_SOURCE[0]}" == "$0" ]] && { echo "Source via install.sh"; exit 1; }
+[[ "${BASH_SOURCE[0]}" == "$0" ]] && {
+  echo "Source via install.sh"
+  exit 1
+}
 
 info "Configuring Starship prompt..."
 STARSHIP_DIR="${STARSHIP_DIR:-$HOME/.config}"
@@ -15,9 +18,9 @@ mkdir -p "$STARSHIP_DIR"
 
 read -r -p "Would you like to customize Starship themes via presets now? (y/N): " CHANGE_STARSHIP
 if [[ "$CHANGE_STARSHIP" =~ ^[Yy]$ ]]; then
-  if command -v starship >/dev/null 2>&1 && command -v fzf >/dev/null 2>&1; then
+  if command -v starship > /dev/null 2>&1 && command -v fzf > /dev/null 2>&1; then
     mapfile -t PRESETS < <(starship preset --list || true)
-    if (( ${#PRESETS[@]} > 0 )); then
+    if ((${#PRESETS[@]} > 0)); then
       SEL_DEFAULT="$(printf '%s\n' "${PRESETS[@]}" | fzf --height=40% --reverse --border --ansi --prompt="Select preset for non-Git dirs: ")"
       SEL_GIT="$(printf '%s\n' "${PRESETS[@]}" | fzf --height=40% --reverse --border --ansi --prompt="Select preset for Git dirs: ")"
       [[ -n "${SEL_DEFAULT:-}" ]] && STARSHIP_DEFAULT_THEME="$SEL_DEFAULT"
@@ -37,7 +40,7 @@ append_aws_block_once() {
   local file="$1"
   local begin="# --- AWS BLOCK BEGIN ---"
   local end="# --- AWS BLOCK END ---"
-  if grep -qF "$begin" "$file" 2>/dev/null; then
+  if grep -qF "$begin" "$file" 2> /dev/null; then
     awk -v b="$begin" -v e="$end" '
       $0==b {inblk=1; next}
       $0==e {inblk=0; next}
@@ -54,12 +57,12 @@ append_aws_block_once() {
   fi
   [[ ${#profiles[@]} -eq 0 ]] && profiles=(default)
 
-  declare -A style_for=( [prod]="bold red" [production]="bold red" [dev]="bold green" [development]="bold green" [staging]="bold yellow" [sandbox]="bold blue" )
+  declare -A style_for=([prod]="bold red" [production]="bold red" [dev]="bold green" [development]="bold green" [staging]="bold yellow" [sandbox]="bold blue")
 
   {
     echo ""
     echo "$begin"
-    cat <<'STATIC'
+    cat << 'STATIC'
 # --- AWS Profile Indicator (Auto-generated) ---
 [aws]
 symbol = "☁️ "
@@ -75,8 +78,8 @@ STATIC
       [[ -n "${seen[$p]:-}" ]] && continue
       seen[$p]=1
       case "$p" in
-        prod|production) alias="production" ;;
-        dev|development) alias="development" ;;
+        prod | production) alias="production" ;;
+        dev | development) alias="development" ;;
         staging) alias="staging" ;;
         sandbox) alias="sandbox" ;;
         *) alias="$p" ;;
@@ -90,8 +93,8 @@ STATIC
     for p in "${profiles[@]}"; do
       [[ -n "${seen[$p]:-}" ]] || continue
       case "$p" in
-        prod|production) a="production" ;;
-        dev|development) a="development" ;;
+        prod | production) a="production" ;;
+        dev | development) a="development" ;;
         staging) a="staging" ;;
         sandbox) a="sandbox" ;;
         *) a="$p" ;;
@@ -123,7 +126,7 @@ if [[ "$INSTALL_AWS_CLI" == "true" ]]; then
 fi
 
 if ! grep -q "starship_preexec" "$ZSHRC"; then
-  cat <<'EOF' >> "$ZSHRC"
+  cat << 'EOF' >> "$ZSHRC"
 
 # --- Dynamic Starship Theme Switch ---
 starship_preexec() {

@@ -3,6 +3,7 @@
 ![Lint](https://github.com/joe/my-shell/actions/workflows/lint.yml/badge.svg?branch=main)
 
 Modular CLI bootstrap:
+
 - Homebrew + core tools
 - Fonts (Meslo Nerd Font)
 - Oh My Zsh
@@ -14,6 +15,7 @@ Modular CLI bootstrap:
 - Summary
 
 ## Usage
+
 ```bash
 chmod +x install.sh
 ./install.sh

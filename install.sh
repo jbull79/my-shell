@@ -42,7 +42,7 @@ for m in "${modules[@]}"; do
   fi
 done
 
-if (( ${#failures[@]} )); then
+if ((${#failures[@]})); then
   echo ""
   warn "⚠️ Some modules failed:"
   for f in "${failures[@]}"; do

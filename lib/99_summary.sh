@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 set -euo pipefail
-[[ "${BASH_SOURCE[0]}" == "$0" ]] && { echo "Source via install.sh"; exit 1; }
+[[ "${BASH_SOURCE[0]}" == "$0" ]] && {
+  echo "Source via install.sh"
+  exit 1
+}
 
 echo "📦 Backup directory: ${BACKUP_DIR:-$HOME/.setup_backups/backup_$(date +%Y%m%d_%H%M%S)}"
 echo "✅ Setup complete!"

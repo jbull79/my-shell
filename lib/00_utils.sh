@@ -9,9 +9,9 @@ _c_err="\033[1;31m"
 _c_succ="\033[1;32m"
 _c_none="\033[0m"
 
-info()    { echo -e "${_c_info}[INFO]${_c_none} $*"; }
-warn()    { echo -e "${_c_warn}[WARN]${_c_none} $*"; }
-error()   { echo -e "${_c_err}[ERROR]${_c_none} $*"; }
+info() { echo -e "${_c_info}[INFO]${_c_none} $*"; }
+warn() { echo -e "${_c_warn}[WARN]${_c_none} $*"; }
+error() { echo -e "${_c_err}[ERROR]${_c_none} $*"; }
 success() { echo -e "${_c_succ}[SUCCESS]${_c_none} $*"; }
 
 # DRY_RUN aware runner
@@ -19,7 +19,7 @@ run() {
   if [[ "${DRY_RUN:-false}" == "true" ]]; then
     echo "[DRY-RUN] $*"
   else
-    eval "$@"
+    "$@"
   fi
 }
 
@@ -35,7 +35,8 @@ backup_file() {
 }
 
 ensure_line_in_file() {
-  local file="$1"; shift
+  local file="$1"
+  shift
   local line="$*"
   touch "$file"
   if ! grep -Fqx "$line" "$file"; then
@@ -45,7 +46,8 @@ ensure_line_in_file() {
 
 die_if_sourced_directly() {
   if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-    echo "Source via install.sh"; exit 1
+    echo "Source via install.sh"
+    exit 1
   fi
 }
 
