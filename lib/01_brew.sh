@@ -22,7 +22,7 @@ else
     BREW_PREFIX="/opt/homebrew"
   fi
 fi
-eval "$($BREW_PREFIX/bin/brew shellenv 2>/dev/null || true)"
+eval "$("$BREW_PREFIX"/bin/brew shellenv 2>/dev/null || true)"
 
 # Install / update Homebrew
 if ! command -v brew >/dev/null 2>&1; then
