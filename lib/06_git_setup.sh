@@ -10,16 +10,17 @@ info "Configuring Git and SSH..."
 
 ZSHRC="${ZSHRC:-$HOME/.zshrc}"
 GITCONFIG="${GITCONFIG:-$HOME/.gitconfig}"
+SSH_KEY="$HOME/.ssh/id_rsa_git"
+SSH_KEY_COMMENL="Git SSH Key"
 
 # Backup existing config
 backup_file "$GITCONFIG"
 
 # Ensure SSH key
-SSH_KEY="$HOME/.ssh/id_ed25519"
 if [[ ! -f "$SSH_KEY" ]]; then
   info "Generating new SSH key..."
   mkdir -p "$HOME/.ssh"
-  ssh-keygen -t ed25519 -C "your_email@example.com" -f "$SSH_KEY" -N ""
+  ssh-keygen -t ed25519 -C "$SSH_KEY_COMMENT" -f "$SSH_KEY" -N ""
   eval "$(ssh-agent -s)"
   ssh-add "$SSH_KEY"
 else
