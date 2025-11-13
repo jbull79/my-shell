@@ -64,17 +64,36 @@ retry() {
 
 # DRY_RUN aware runner with better output
 run() {
-  if [[ "${DRY_RUN:-false}" == "true" ]]; then
-    echo "[DRY-RUN] Would execute: $*"
-    echo "         Command: $(command -v "$1" 2>/dev/null || echo "$1")"
-    echo "         Args: ${*:2}"
-    return 0
-  else
-    if ! "$@"; then
-      log_error "${BASH_SOURCE[1]##*/}" "Command failed: $*"
-      return 1
+  local cmd="$*"
+  
+  # Check if command contains pipes, redirections, or is a single string
+  # If so, we need to execute it with bash -c
+  if [[ "$cmd" =~ \||\>|\< ]] || [[ $# -eq 1 ]]; then
+    # Command contains pipes/redirections or is a single string argument
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+      echo "[DRY-RUN] Would execute: $cmd"
+      return 0
+    else
+      if ! bash -c "$cmd"; then
+        log_error "${BASH_SOURCE[1]##*/}" "Command failed: $cmd"
+        return 1
+      fi
+      return 0
     fi
-    return 0
+  else
+    # Multiple arguments - execute normally
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+      echo "[DRY-RUN] Would execute: $*"
+      echo "         Command: $(command -v "$1" 2>/dev/null || echo "$1")"
+      echo "         Args: ${*:2}"
+      return 0
+    else
+      if ! "$@"; then
+        log_error "${BASH_SOURCE[1]##*/}" "Command failed: $*"
+        return 1
+      fi
+      return 0
+    fi
   fi
 }
 

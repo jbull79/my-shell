@@ -4,16 +4,17 @@ set -euo pipefail
 # If SKIP_BREW is set, we've already installed brew and are re-running with brew bash
 SKIP_BREW="${SKIP_BREW:-false}"
 
-export DRY_RUN="${DRY_RUN:-false}"
-export BACKUP_BASE="${BACKUP_BASE:-$HOME/.setup_backups}"
-export BACKUP_DIR="${BACKUP_DIR:-$BACKUP_BASE/backup_$(date +%Y%m%d_%H%M%S)}"
-export ERROR_LOG="${BACKUP_DIR}/errors.log"
-
-# Load config file if it exists
+# Load config file if it exists (before setting defaults)
 if [[ -f "$(dirname "$0")/setup.conf" ]]; then
   # shellcheck source=/dev/null
   . "$(dirname "$0")/setup.conf"
 fi
+
+# Export variables (command line args take precedence over config file)
+export DRY_RUN="${DRY_RUN:-false}"
+export BACKUP_BASE="${BACKUP_BASE:-$HOME/.setup_backups}"
+export BACKUP_DIR="${BACKUP_DIR:-$BACKUP_BASE/backup_$(date +%Y%m%d_%H%M%S)}"
+export ERROR_LOG="${BACKUP_DIR}/errors.log"
 
 # shellcheck source=lib/00_utils.sh
 . "$(dirname "$0")/lib/00_utils.sh"
