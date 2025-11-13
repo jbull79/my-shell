@@ -10,10 +10,11 @@ ZSHRC="${ZSHRC:-$HOME/.zshrc}"
 
 if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
   info "Installing Oh My Zsh..."
-  run "RUNZSH=no CHSH=no sh -c \"\$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\""
+  retry 'RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"'
 else
   info "Oh My Zsh already installed."
 fi
 
 ensure_line_in_file "$ZSHRC" '[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh'
+ensure_line_in_file "$ZSHRC" 'eval "$(zoxide init zsh)"'
 success "Zsh base configured."

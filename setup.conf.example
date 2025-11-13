@@ -1,0 +1,36 @@
+# Setup Configuration File
+# Copy this to setup.conf and customize as needed
+#
+# Usage: cp setup.conf.example setup.conf
+# Then edit setup.conf with your preferences
+
+# Dry run mode (true/false)
+# When true, shows what would be executed without making changes
+DRY_RUN=false
+
+# Backup directory
+BACKUP_BASE="$HOME/.setup_backups"
+
+# Install options
+INSTALL_RANCHER_DESKTOP=true
+INSTALL_AWS_CLI=true
+INSTALL_DATADOG_TOOLS=false
+
+# Starship themes
+STARSHIP_DEFAULT_THEME="pastel-powerline"
+STARSHIP_GIT_THEME="tokyo-night"
+
+# Bat theme
+BAT_DEFAULT_THEME="TwoDark"
+SKIP_BAT_CACHE=false
+
+# Retry settings for network operations
+RETRY_MAX=3
+RETRY_DELAY=2
+
+# Paths (optional overrides)
+# Uncomment and modify if you want custom paths
+# ZSHRC="$HOME/.zshrc"
+# GITCONFIG="$HOME/.gitconfig"
+# AWS_CONFIG_DIR="$HOME/.aws"
+

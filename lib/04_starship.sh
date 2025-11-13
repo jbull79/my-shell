@@ -40,6 +40,12 @@ append_aws_block_once() {
   local file="$1"
   local begin="# --- AWS BLOCK BEGIN ---"
   local end="# --- AWS BLOCK END ---"
+  
+  if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    info "[DRY-RUN] Would append AWS block to $file"
+    return 0
+  fi
+  
   if grep -qF "$begin" "$file" 2> /dev/null; then
     awk -v b="$begin" -v e="$end" '
       $0==b {inblk=1; next}
@@ -125,8 +131,12 @@ if [[ "$INSTALL_AWS_CLI" == "true" ]]; then
   append_aws_block_once "$STARSHIP_GIT_CONF"
 fi
 
-if ! grep -q "starship_preexec" "$ZSHRC"; then
-  cat << 'EOF' >> "$ZSHRC"
+# Better duplicate detection for Starship config
+if ! grep -qF "starship_preexec" "$ZSHRC" 2>/dev/null; then
+  if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    info "[DRY-RUN] Would add Starship configuration to $ZSHRC"
+  else
+    cat << 'EOF' >> "$ZSHRC"
 
 # --- Dynamic Starship Theme Switch ---
 starship_preexec() {
@@ -140,6 +150,10 @@ autoload -Uz add-zsh-hook
 add-zsh-hook precmd starship_preexec
 eval "$(starship init zsh)"
 EOF
+    info "Added Starship configuration to $ZSHRC"
+  fi
+else
+  info "Starship configuration already present in $ZSHRC"
 fi
 
 success "Starship configured (auto theme + AWS indicator)."

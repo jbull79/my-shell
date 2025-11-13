@@ -25,7 +25,10 @@ if [[ "$INSTALL_DATADOG_TOOLS" == "true" ]]; then
     fi
 
     if ! grep -q "### DATADOG CONFIG START" "$ZSHRC"; then
-      cat << EOF >> "$ZSHRC"
+      if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        info "[DRY-RUN] Would add Datadog configuration to $ZSHRC"
+      else
+        cat << EOF >> "$ZSHRC"
 
 ### DATADOG CONFIG START ###
 export DATADOG_API_KEY="${DATADOG_API_KEY}"
@@ -36,6 +39,7 @@ alias dmon="dog monitor show_all"
 alias dtrace="datadog-ci trace upload"
 ### DATADOG CONFIG END ###
 EOF
+      fi
     fi
 
     success "Datadog CLI installed and configured."

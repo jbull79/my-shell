@@ -13,7 +13,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     if ! run "brew install --cask font-meslo-lg-nerd-font"; then
       warn "Brew cask failed; falling back to manual download."
       TMP="$(mktemp -d)"
-      run "curl -fsSL -o \"$TMP/Meslo.zip\" https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/Meslo.zip"
+      download_with_retry "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/Meslo.zip" "$TMP/Meslo.zip"
       run "unzip -o \"$TMP/Meslo.zip\" -d \"$TMP/meslo\""
       run "cp \"$TMP/meslo\"/*.ttf ~/Library/Fonts/"
     fi
@@ -24,7 +24,7 @@ else
   fi
   if ! fc-list | grep -qi 'MesloLGS NF'; then
     TMP="$(mktemp -d)"
-    run "curl -fsSL -o \"$TMP/Meslo.zip\" https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/Meslo.zip"
+    download_with_retry "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/Meslo.zip" "$TMP/Meslo.zip"
     run "unzip -o \"$TMP/Meslo.zip\" -d \"$TMP/meslo\""
     mkdir -p "$HOME/.local/share/fonts"
     run "cp \"$TMP/meslo\"/*.ttf \"$HOME/.local/share/fonts/\""

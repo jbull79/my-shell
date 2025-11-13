@@ -13,8 +13,12 @@ BAT_DEFAULT_THEME="${BAT_DEFAULT_THEME:-TwoDark}"
 mkdir -p "$BAT_CONFIG_DIR"
 
 if [[ ! -f "$BAT_CONFIG_DIR/config" ]]; then
-  echo "--theme=\"$BAT_DEFAULT_THEME\"" > "$BAT_CONFIG_DIR/config"
-  info "Set default bat theme: $BAT_DEFAULT_THEME"
+  if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    info "[DRY-RUN] Would create bat config: $BAT_CONFIG_DIR/config with theme $BAT_DEFAULT_THEME"
+  else
+    echo "--theme=\"$BAT_DEFAULT_THEME\"" > "$BAT_CONFIG_DIR/config"
+    info "Set default bat theme: $BAT_DEFAULT_THEME"
+  fi
 fi
 
 SKIP_BAT_CACHE="${SKIP_BAT_CACHE:-false}"
@@ -38,18 +42,24 @@ if [[ "$CHANGE_BAT" =~ ^[Yy]$ ]]; then
   mapfile -t THEMES < <(bat --list-themes || true)
   if ((${#THEMES[@]} > 0)); then
     DEMO_FILE="/tmp/bat_theme_demo.py"
-    cat > "$DEMO_FILE" << 'PY'
+    if [[ "${DRY_RUN:-false}" != "true" ]]; then
+      cat > "$DEMO_FILE" << 'PY'
 # Example Python file for bat preview
 def greet(name): print(f"Hello, {name}!")
 greet("world")
 PY
+    fi
     SELECTED_THEME="$(printf '%s\n' "${THEMES[@]}" | fzf --height=80% --reverse --border --ansi \
       --prompt="Select bat theme: " \
       --preview "bat --color=always --theme={} $DEMO_FILE" \
       --preview-window=right:70% || true)"
     if [[ -n "${SELECTED_THEME:-}" ]]; then
-      info "Setting bat theme to: $SELECTED_THEME"
-      echo "--theme=\"$SELECTED_THEME\"" > "$BAT_CONFIG_DIR/config"
+      if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        info "[DRY-RUN] Would set bat theme to: $SELECTED_THEME"
+      else
+        info "Setting bat theme to: $SELECTED_THEME"
+        echo "--theme=\"$SELECTED_THEME\"" > "$BAT_CONFIG_DIR/config"
+      fi
     else
       info "No theme selected — keeping current theme."
     fi
