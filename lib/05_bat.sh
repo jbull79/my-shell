@@ -1,12 +1,33 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 set -euo pipefail
-[[ "${BASH_SOURCE[0]}" == "$0" ]] && {
-  echo "Source via install.sh"
-  exit 1
-}
+
+# If run directly (not sourced), load utils and set defaults
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  if [[ -f "$SCRIPT_DIR/00_utils.sh" ]]; then
+    # shellcheck source=00_utils.sh
+    . "$SCRIPT_DIR/00_utils.sh"
+  else
+    echo "Error: 00_utils.sh not found. Please run from lib/ directory or via install.sh"
+    exit 1
+  fi
+  export DRY_RUN="${DRY_RUN:-false}"
+  export BACKUP_BASE="${BACKUP_BASE:-$HOME/.setup_backups}"
+  export BACKUP_DIR="${BACKUP_DIR:-$BACKUP_BASE/backup_$(date +%Y%m%d_%H%M%S)}"
+  export ERROR_LOG="${BACKUP_DIR}/errors.log"
+  mkdir -p "$BACKUP_BASE"
+  if [[ -f "$SCRIPT_DIR/../setup.conf" ]]; then
+    # shellcheck source=/dev/null
+    . "$SCRIPT_DIR/../setup.conf"
+  fi
+fi
 
 info "Configuring bat syntax highlighting and themes..."
+
+# Check and install bat if missing (for independent script runs)
+ensure_command "bat" 'if command -v brew > /dev/null 2>&1; then brew install bat; else echo "Please install bat manually"; exit 1; fi'
+
 BAT_CONFIG_DIR="${BAT_CONFIG_DIR:-$HOME/.config/bat}"
 GIT_LOCAL_DIR="${GIT_LOCAL_DIR:-$HOME/git-local}"
 BAT_DEFAULT_THEME="${BAT_DEFAULT_THEME:-TwoDark}"

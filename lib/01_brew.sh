@@ -1,10 +1,27 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 set -euo pipefail
-[[ "${BASH_SOURCE[0]}" == "$0" ]] && {
-  echo "Source via install.sh"
-  exit 1
-}
+
+# If run directly (not sourced), load utils and set defaults
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  if [[ -f "$SCRIPT_DIR/00_utils.sh" ]]; then
+    # shellcheck source=00_utils.sh
+    . "$SCRIPT_DIR/00_utils.sh"
+  else
+    echo "Error: 00_utils.sh not found. Please run from lib/ directory or via install.sh"
+    exit 1
+  fi
+  export DRY_RUN="${DRY_RUN:-false}"
+  export BACKUP_BASE="${BACKUP_BASE:-$HOME/.setup_backups}"
+  export BACKUP_DIR="${BACKUP_DIR:-$BACKUP_BASE/backup_$(date +%Y%m%d_%H%M%S)}"
+  export ERROR_LOG="${BACKUP_DIR}/errors.log"
+  mkdir -p "$BACKUP_BASE"
+  if [[ -f "$SCRIPT_DIR/../setup.conf" ]]; then
+    # shellcheck source=/dev/null
+    . "$SCRIPT_DIR/../setup.conf"
+  fi
+fi
 
 ZSHRC="${ZSHRC:-$HOME/.zshrc}"
 GITCONFIG="${GITCONFIG:-$HOME/.gitconfig}"
@@ -53,9 +70,9 @@ TOOLS_DEFAULT=(
   bash git zoxide bat duf
   fzf fd ripgrep eza
   tlrc thefuck git-delta starship
-  uv tfenv terraform lazygit
+  uv tfenv terraform lazygit lazydocker
   direnv zsh-autosuggestions zsh-syntax-highlighting
-  gnupg tmux wget
+  gnupg tmux wget git-flow awscli 
 )
 TOOLS=("${TOOLS[@]:-${TOOLS_DEFAULT[@]}}")
 
@@ -65,6 +82,32 @@ for t in "${TOOLS[@]}"; do
 done
 
 run "brew install ${TOOLS[*]}"
+
+# Install Python packages (boto3 for AWS)
+info "Installing Python packages..."
+if command -v uv > /dev/null 2>&1; then
+  if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    info "[DRY-RUN] Would install boto3 via uv"
+  else
+    if ! python3 -c "import boto3" 2>/dev/null; then
+      run "uv pip install boto3 --quiet"
+      info "boto3 installed via uv"
+    else
+      info "boto3 already installed"
+    fi
+  fi
+elif command -v pip3 > /dev/null 2>&1; then
+  if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    info "[DRY-RUN] Would install boto3 via pip3"
+  else
+    if ! python3 -c "import boto3" 2>/dev/null; then
+      run "pip3 install boto3 --quiet"
+      info "boto3 installed via pip3"
+    else
+      info "boto3 already installed"
+    fi
+  fi
+fi
 
 # Install bash v4+ and export BASH_BIN for subsequent scripts
 info "Setting up bash v4+..."
@@ -93,6 +136,20 @@ if [[ "$OSTYPE" != "linux-gnu"* && "$INSTALL_RANCHER_DESKTOP" == "true" ]]; then
     run "brew install --cask rancher"
   else
     info "Rancher Desktop already installed."
+  fi
+fi
+
+# Install fonts
+info "Installing Meslo Nerd Font..."
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  if ! brew list --cask font-meslo-lg-nerd-font > /dev/null 2>&1; then
+    run "brew install --cask font-meslo-lg-nerd-font"
+  else
+    info "Meslo Nerd Font already installed."
+  fi
+else
+  if ! command -v fc-list > /dev/null 2>&1; then
+    run "brew install fontconfig"
   fi
 fi
 

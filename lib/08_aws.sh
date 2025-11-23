@@ -1,10 +1,29 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 set -euo pipefail
-[[ "${BASH_SOURCE[0]}" == "$0" ]] && {
-  echo "Source via install.sh"
-  exit 1
-}
+
+# If run directly (not sourced), load utils and set defaults
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  # Source utils
+  if [[ -f "$SCRIPT_DIR/00_utils.sh" ]]; then
+    # shellcheck source=00_utils.sh
+    . "$SCRIPT_DIR/00_utils.sh"
+  else
+    echo "Error: 00_utils.sh not found. Please run from lib/ directory or via install.sh"
+    exit 1
+  fi
+  # Set default variables for independent runs
+  export DRY_RUN="${DRY_RUN:-false}"
+  export BACKUP_BASE="${BACKUP_BASE:-$HOME/.setup_backups}"
+  export BACKUP_DIR="${BACKUP_DIR:-$BACKUP_BASE/backup_$(date +%Y%m%d_%H%M%S)}"
+  export ERROR_LOG="${BACKUP_DIR}/errors.log"
+  # Load config if exists
+  if [[ -f "$SCRIPT_DIR/../setup.conf" ]]; then
+    # shellcheck source=/dev/null
+    . "$SCRIPT_DIR/../setup.conf"
+  fi
+fi
 
 INSTALL_AWS_CLI="${INSTALL_AWS_CLI:-true}"
 AWS_CONFIG_DIR="${AWS_CONFIG_DIR:-$HOME/.aws}"
@@ -14,16 +33,11 @@ if [[ "$INSTALL_AWS_CLI" != "true" ]]; then
   exit 0
 fi
 
-info "Installing AWS CLI (if not present)..."
-if ! command -v aws > /dev/null 2>&1; then
-  if command -v brew > /dev/null 2>&1; then
-    run "brew install awscli"
-  else
-    run "pip install awscli --quiet"
-  fi
-else
-  info "AWS CLI already installed."
-fi
+# Check and install AWS CLI if missing (for independent script runs)
+ensure_command "aws" 'if command -v brew > /dev/null 2>&1; then brew install awscli; else pip install awscli --quiet; fi'
+
+# Check and install boto3 if missing (for independent script runs)
+ensure_python_package "boto3" "boto3"
 
 mkdir -p "$AWS_CONFIG_DIR"
 CONFIG_FILE="$AWS_CONFIG_DIR/config"

@@ -33,6 +33,75 @@ require_command() {
   return 0
 }
 
+# Check and install command if missing (for independent script runs)
+ensure_command() {
+  local cmd="$1"
+  local install_cmd="${2:-}"
+  
+  if command -v "$cmd" > /dev/null 2>&1; then
+    return 0
+  fi
+  
+  if [[ -z "$install_cmd" ]]; then
+    warn "Command '$cmd' not found and no install command provided"
+    return 1
+  fi
+  
+  info "Installing $cmd (required for this script)..."
+  if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    info "[DRY-RUN] Would run: $install_cmd"
+    return 0
+  else
+    if eval "$install_cmd"; then
+      info "$cmd installed successfully"
+      return 0
+    else
+      error "Failed to install $cmd"
+      return 1
+    fi
+  fi
+}
+
+# Check and install Python package if missing
+ensure_python_package() {
+  local package="$1"
+  local import_name="${2:-$package}"
+  
+  if python3 -c "import $import_name" 2>/dev/null; then
+    return 0
+  fi
+  
+  info "Installing Python package '$package' (required for this script)..."
+  if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if command -v uv > /dev/null 2>&1; then
+      info "[DRY-RUN] Would run: uv pip install $package"
+    elif command -v pip3 > /dev/null 2>&1; then
+      info "[DRY-RUN] Would run: pip3 install $package"
+    else
+      warn "[DRY-RUN] No Python package manager found (uv or pip3)"
+      return 1
+    fi
+    return 0
+  fi
+  
+  if command -v uv > /dev/null 2>&1; then
+    if run "uv pip install $package --quiet"; then
+      info "$package installed via uv"
+      return 0
+    fi
+  elif command -v pip3 > /dev/null 2>&1; then
+    if run "pip3 install $package --quiet"; then
+      info "$package installed via pip3"
+      return 0
+    fi
+  else
+    error "Neither uv nor pip3 found - cannot install $package"
+    return 1
+  fi
+  
+  return 1
+}
+
 # Retry function for network operations
 retry() {
   local max_attempts="${RETRY_MAX:-3}"
