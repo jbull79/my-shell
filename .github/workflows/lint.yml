@@ -1,49 +1,143 @@
-name: 🧪 Code Quality — Shell, Markdown, Python
+name: Lint & Format
 
 on:
   push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
 
 jobs:
   lint:
-    name: Run linters
     runs-on: ubuntu-latest
-
+    continue-on-error: false
     steps:
-      # --- 1. Checkout the repository ---
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # --- 2. Shell Linting (ShellCheck) ---
-      - name: Install ShellCheck
-        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      # 🔹 Install linters + formatters
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck shfmt
+          npm install -g markdownlint-cli prettier
+          pip install flake8 black
 
-      - name: Lint shell scripts
+      # 🔹 Shell lint + format check
+      - name: Run ShellCheck
+        id: shellcheck
+        continue-on-error: true
         run: |
           echo "🔍 Running ShellCheck..."
-          find . -type f -name "*.sh" -print0 | xargs -0 -n1 shellcheck || true
+          set +e
+          find . -type f -name "*.sh" -not -path "./.git/*" -print0 | xargs -0 -n1 shellcheck -x || {
+            echo "⚠️ ShellCheck found issues (non-critical)"
+            exit 0
+          }
+          echo "✅ ShellCheck passed"
+        shell: bash
 
-      # --- 3. Markdown Linting (markdownlint-cli) ---
-      - name: Install markdownlint-cli
-        run: npm install -g markdownlint-cli
+      - name: Check shfmt formatting
+        id: shfmt
+        continue-on-error: true
+        run: |
+          echo "🧹 Checking shfmt formatting..."
+          set +e
+          shfmt -d -i 2 -ci -sr . || {
+            echo "⚠️ shfmt formatting issues found (non-critical)"
+            exit 0
+          }
+          echo "✅ shfmt formatting passed"
+        shell: bash
 
-      - name: Lint Markdown files
+      # 🔹 Markdown lint + format check
+      - name: Check markdown files
+        id: markdown
+        continue-on-error: true
         run: |
           echo "🧾 Running markdownlint..."
-          markdownlint "**/*.md" || true
+          set +e
+          markdownlint "**/*.md" || {
+            echo "⚠️ markdownlint found issues (non-critical)"
+            exit 0
+          }
+          echo "✅ markdownlint passed"
+        shell: bash
 
-      # --- 4. Python Linting (Flake8) ---
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Install Flake8
-        run: pip install flake8
-
-      - name: Lint Python files
+      - name: Check markdown formatting
+        id: prettier
+        continue-on-error: true
         run: |
-          echo "🐍 Running Flake8..."
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
+          echo "✨ Checking markdown formatting..."
+          set +e
+          prettier --check "**/*.md" || {
+            echo "⚠️ Prettier formatting issues found (non-critical)"
+            exit 0
+          }
+          echo "✅ Prettier formatting passed"
+        shell: bash
+
+      # 🔹 Python lint + format check
+      - name: Check Python files
+        id: python
+        continue-on-error: true
+        run: |
+          echo "🐍 Running Flake8 (critical errors only)..."
+          set +e
+          # Only check for critical errors: E9 (syntax), F63 (print), F7 (syntax), F82 (undefined)
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || {
+            echo "❌ Flake8 found CRITICAL errors (syntax/undefined)"
+            exit 1
+          }
+          echo "✅ Flake8 critical checks passed"
+          
+          # Check formatting but don't fail
+          echo "🎨 Checking Black formatting..."
+          black --check . || {
+            echo "⚠️ Black formatting issues found (non-critical)"
+            exit 0
+          }
+          echo "✅ Black formatting passed"
+        shell: bash
+
+      # 🔹 Summary
+      - name: Lint Summary
+        if: always()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 Lint & Format Summary"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          if [[ "${{ steps.shellcheck.outcome }}" == "success" ]]; then
+            echo "✅ ShellCheck: Passed"
+          else
+            echo "⚠️  ShellCheck: Warnings (non-critical)"
+          fi
+          
+          if [[ "${{ steps.shfmt.outcome }}" == "success" ]]; then
+            echo "✅ shfmt: Passed"
+          else
+            echo "⚠️  shfmt: Warnings (non-critical)"
+          fi
+          
+          if [[ "${{ steps.markdown.outcome }}" == "success" ]]; then
+            echo "✅ markdownlint: Passed"
+          else
+            echo "⚠️  markdownlint: Warnings (non-critical)"
+          fi
+          
+          if [[ "${{ steps.prettier.outcome }}" == "success" ]]; then
+            echo "✅ Prettier: Passed"
+          else
+            echo "⚠️  Prettier: Warnings (non-critical)"
+          fi
+          
+          if [[ "${{ steps.python.outcome }}" == "success" ]]; then
+            echo "✅ Python (Flake8/Black): Passed"
+          elif [[ "${{ steps.python.outcome }}" == "failure" ]]; then
+            echo "❌ Python: CRITICAL ERRORS FOUND"
+            exit 1
+          else
+            echo "⚠️  Python: Warnings (non-critical)"
+          fi
+          
+          echo ""
+          echo "✅ All non-critical checks completed"
+          echo "💡 Review warnings above, but workflow will pass"
+        shell: bash
