@@ -1,28 +1,43 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 set -euo pipefail
-[[ "${BASH_SOURCE[0]}" == "$0" ]] && {
-  echo "Source via install.sh"
-  exit 1
-}
+
+# If run directly (not sourced), load utils and set defaults
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  # Source utils
+  if [[ -f "$SCRIPT_DIR/00_utils.sh" ]]; then
+    # shellcheck source=00_utils.sh
+    . "$SCRIPT_DIR/00_utils.sh"
+  else
+    echo "Error: 00_utils.sh not found. Please run from lib/ directory or via install.sh"
+    exit 1
+  fi
+  # Set default variables for independent runs
+  export DRY_RUN="${DRY_RUN:-false}"
+  export BACKUP_BASE="${BACKUP_BASE:-$HOME/.setup_backups}"
+  export BACKUP_DIR="${BACKUP_DIR:-$BACKUP_BASE/backup_$(date +%Y%m%d_%H%M%S)}"
+  export ERROR_LOG="${BACKUP_DIR}/errors.log"
+  # Load config if exists
+  if [[ -f "$SCRIPT_DIR/../setup.conf" ]]; then
+    # shellcheck source=/dev/null
+    . "$SCRIPT_DIR/../setup.conf"
+  fi
+fi
 
 INSTALL_AWS_CLI="${INSTALL_AWS_CLI:-true}"
 AWS_CONFIG_DIR="${AWS_CONFIG_DIR:-$HOME/.aws}"
+ZSHRC="${ZSHRC:-$HOME/.zshrc}"
 if [[ "$INSTALL_AWS_CLI" != "true" ]]; then
   info "AWS CLI disabled by config."
   exit 0
 fi
 
-info "Installing AWS CLI (if not present)..."
-if ! command -v aws > /dev/null 2>&1; then
-  if command -v brew > /dev/null 2>&1; then
-    run "brew install awscli"
-  else
-    run "pip install awscli --quiet"
-  fi
-else
-  info "AWS CLI already installed."
-fi
+# Check and install AWS CLI if missing (for independent script runs)
+ensure_command "aws" 'if command -v brew > /dev/null 2>&1; then brew install awscli; else pip install awscli --quiet; fi'
+
+# Check and install boto3 if missing (for independent script runs)
+ensure_python_package "boto3" "boto3"
 
 mkdir -p "$AWS_CONFIG_DIR"
 CONFIG_FILE="$AWS_CONFIG_DIR/config"
@@ -31,12 +46,20 @@ backup_file "$CONFIG_FILE"
 backup_file "$CREDS_FILE"
 
 BACKUP_DIR_AWS="${BACKUP_DIR:-$HOME/.setup_backups}/aws_backup_$(date +%Y%m%d_%H%M%S)"
-mkdir -p "$BACKUP_DIR_AWS"
-info "Backed up existing AWS config → $BACKUP_DIR_AWS"
-cp -a "$AWS_CONFIG_DIR"/* "$BACKUP_DIR_AWS" 2> /dev/null || true
+if [[ "${DRY_RUN:-false}" == "true" ]]; then
+  info "[DRY-RUN] Would backup AWS config to $BACKUP_DIR_AWS"
+else
+  mkdir -p "$BACKUP_DIR_AWS"
+  info "Backed up existing AWS config → $BACKUP_DIR_AWS"
+  cp -a "$AWS_CONFIG_DIR"/* "$BACKUP_DIR_AWS" 2> /dev/null || true
+fi
 
-: > "$CONFIG_FILE"
-: > "$CREDS_FILE"
+if [[ "${DRY_RUN:-false}" != "true" ]]; then
+  : > "$CONFIG_FILE"
+  : > "$CREDS_FILE"
+else
+  info "[DRY-RUN] Would clear AWS config and credentials files"
+fi
 
 cat << 'HDR'
 
@@ -68,6 +91,12 @@ read -r -p "Do you want to provide valid AWS account details now? (y/N): " PROVI
 
 write_profile() {
   local profile="$1" region="$2" output="$3" access="$4" secret="$5"
+  
+  if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    info "[DRY-RUN] Would write profile '$profile' to AWS config files"
+    return 0
+  fi
+  
   {
     echo ""
     echo "[profile $profile]"
@@ -106,6 +135,27 @@ else
   for PROFILE in "${PROFILES[@]}"; do
     write_profile "$PROFILE" "us-east-1" "json" "DUMMYACCESSKEY-$PROFILE" "DUMMYSECRETKEY-$PROFILE"
   done
+fi
+
+# Add AWS CLI autocomplete to .zshrc
+if command -v aws_completer > /dev/null 2>&1; then
+  if ! grep -q "aws_completer" "$ZSHRC" 2> /dev/null; then
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+      info "[DRY-RUN] Would add AWS CLI autocomplete to $ZSHRC"
+    else
+      info "Adding AWS CLI autocomplete to $ZSHRC..."
+      cat << 'EOF' >> "$ZSHRC"
+
+# AWS CLI autocomplete
+autoload bashcompinit && bashcompinit
+complete -C aws_completer aws
+EOF
+    fi
+  else
+    info "AWS CLI autocomplete already configured in $ZSHRC"
+  fi
+else
+  warn "aws_completer not found - AWS CLI autocomplete will not be available"
 fi
 
 success "AWS CLI configured successfully."
